@@ -1,0 +1,11 @@
+{
+  "name": "proto",
+  "version": "0.0.1",
+  "description": "proto",
+  "main": "main.js",
+  "author": "Mikael Danielsson",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.13.3"
+  }
+}
