@@ -1,23 +1,22 @@
 .nodes-background {
-  /*width: 800px;*/
   height: 500px;
-  width: 1000px;
+  width: 800px;
   background-color: #565656;
 }
 
 .node {
-  width: 100px;
-  height: 70px;
+  width: 50px;
+  height: 40px;
   position: absolute;
-  border: 2px solid black;
+  border: 1px solid black;
   border-radius: 15px;
-  background-color: #5f98f4;
-
-  /*&.node-dragged {
-    background: #9bbef7;
-  };*/
-
-/*  &:hover {
-      background: #9bbef7;
-    }*/
+  background: #5f98f4;
 }
+
+.node.node-dragged {
+  background: red;
+}
+
+/*.node:hover {
+  background: #9bbef7;
+}*/

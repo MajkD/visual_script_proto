@@ -17,8 +17,8 @@ var state_drag = 1;
     this.element = parent[0].lastChild;
     this.element.setAttribute("node-id", this.id);
 
-    this.offsetLeft = parent[0].offsetLeft;
-    this.offsetTop = parent[0].offsetTop;
+    // this.offsetLeft = parent[0].offsetLeft;
+    // this.offsetTop = parent[0].offsetTop;
 
     this.state = state_default;
 
@@ -29,10 +29,20 @@ var state_drag = 1;
   Node.prototype.setPosition = function(xPos, yPos) {
     var nodeWidth = parseInt(this.editor.styles['.node'].width, 10);
     var nodeHeight = parseInt(this.editor.styles['.node'].height, 10);
-    var offsetLeft = this.offsetLeft - (nodeWidth * 0.5);
-    var offsetTop = this.offsetTop - (nodeHeight * 0.5);
-    this.element.style.left = (xPos + offsetLeft) + "px";
-    this.element.style.top = (yPos + offsetTop) + "px";
+    this.element.style.left = (xPos - (nodeWidth * 0.5)) + "px";
+    this.element.style.top = (yPos - (nodeHeight * 0.5)) + "px";
+  }
+
+  Node.prototype.updateDragPosition = function(xPos, yPos) {
+    this.element.style.left = xPos - this.dragOffsetX + "px";
+    this.element.style.top = yPos - this.dragOffsetY + "px";
+  }
+
+  Node.prototype.setDragOffset = function(xPos, yPos) {
+    var left = parseInt(this.element.style.left, 10);
+    var top = parseInt(this.element.style.top, 10);
+    this.dragOffsetX = xPos - left;
+    this.dragOffsetY = yPos - top;
   }
 
   Node.prototype.setState = function(state) {
@@ -41,7 +51,6 @@ var state_drag = 1;
   }
 
   var Editor = function (element, options) {
-
     this.$element = $(element);
     this.elementId = element.id;
     this.styleId = this.elementId + '-style';
@@ -84,11 +93,13 @@ var state_drag = 1;
     this.$element.on('mouseup', $.proxy(this.mouseUpHandler, this));
 
     // this.$element.on('click', $.proxy(this.clickHandler, this));
-    // this.$element.on('mousemove', $.proxy(this.mouseMovedHandler, this));
+    this.$element.on('mousemove', $.proxy(this.mouseMovedHandler, this));
   }
 
   Editor.prototype.mouseMovedHandler = function(event) {
-    console.log("mouse moved...")
+    if(this.curDrag) {
+      this.curDrag.updateDragPosition(event.clientX, event.clientY)
+    }
   }
 
   Editor.prototype.mouseDownHandler = function(event) {
@@ -96,10 +107,15 @@ var state_drag = 1;
     if(nodeID) {
       var node = this.findNode(nodeID);
       if(node) {
-        this.curDrag = node;
-        node.setState(state_drag);
+        this.setDraggingNode(node, event.clientX, event.clientY);
       }
     }
+  }
+
+  Editor.prototype.setDraggingNode = function (node, clientX, clientY) {
+    this.curDrag = node;
+    this.curDrag.setDragOffset(clientX, clientY);
+    this.curDrag.setState(state_drag);
   }
 
   Editor.prototype.mouseUpHandler = function(event) {
@@ -107,21 +123,25 @@ var state_drag = 1;
       this.curDrag.setState(state_default);
       this.curDrag = undefined;
     }
-
     this.clickHandler(event);
   }
 
   Editor.prototype.clickHandler = function(event) {
-    if(event.target.className == "nodes-background") {
-      this.handleBackgroundClicked(event.offsetX, event.offsetY);
-      // this.handleBackgroundClicked(event.offsetX, event.offsetY);
-    } else if(event.target.className == "node") {
-      // this.handleNodeClicked(event);
+    var target = event.target;
+    if(target.className == "nodes-background") {
+      this.handleBackgroundClicked(event.clientX, event.clientY);
+    } else if(this.hasClass('node', target)) {
+      this.handleNodeClicked(event);
     }
   }
 
+  Editor.prototype.hasClass = function(className, element) {
+    var classList = $(element).attr('class') ? $(element).attr('class').split(' ') : [];
+    return classList.includes(className);
+  }
+
   Editor.prototype.handleNodeClicked = function(event) {
-    this.removeNode(event);
+    // this.removeNode(event);
   }
 
   Editor.prototype.handleBackgroundClicked = function(clientX, clientY) {
