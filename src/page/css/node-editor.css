@@ -5,12 +5,25 @@
 }
 
 .node {
-  width: 50px;
-  height: 40px;
+  width: 60px;
+  height: 50px;
   position: absolute;
   border: 1px solid black;
   border-radius: 15px;
   background: #5f98f4;
+}
+
+.connector {
+  width: 8px;
+  height: 8px;
+  position: absolute;
+  border: 1px solid black;
+  border-radius: 15px;
+  background: green;
+}
+
+.connector:hover {
+  background: #d9e0d5;
 }
 
 .node.node-dragged {

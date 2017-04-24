@@ -7,6 +7,34 @@ var state_drag = 1;
 
   var nodeCount = 0; //unique node identificator
 
+  var Connector = function (parentNode, type) {
+    $(parentNode.element).append("<div class='connector'></div>");
+    this.element = parentNode.element.lastChild;
+    var id = parentNode.element.getAttribute("node-id") + "-connector-" + type;
+    this.element.setAttribute("connector-id", id);
+
+    this.xPos = 0;
+    this.yPos = 0;
+    this.width = parseInt(parentNode.editor.styles['.connector'].width, 10);
+    this.height = parseInt(parentNode.editor.styles['.connector'].height, 10);
+    this.type = type;
+    this.updatePosition(parentNode);
+    //Connections
+  }
+
+  Connector.prototype.updatePosition = function(parentNode) {
+    var left = parentNode.xPos + (parentNode.width * 0.5);
+    var top = (this.type == "out") ? parentNode.yPos + parentNode.height : 0;
+    this.xPos = left - (this.width * 0.5);
+    this.yPos = top - (this.height * 0.5);
+    this.updateStyles();
+  }
+
+  Connector.prototype.updateStyles = function() {
+    this.element.style.left = this.xPos + "px";
+    this.element.style.top = this.yPos + "px";
+  }
+
   var Node = function (editor, parent) {
     this.id = nodeCount;
     nodeCount++;
@@ -20,29 +48,44 @@ var state_drag = 1;
     // this.offsetLeft = parent[0].offsetLeft;
     // this.offsetTop = parent[0].offsetTop;
 
+    this.xPos = 0;
+    this.yPos = 0;
+    this.width = parseInt(this.editor.styles['.node'].width, 10);
+    this.height = parseInt(this.editor.styles['.node'].height, 10);
+
     this.state = state_default;
+
+    this.addConnectors();
 
     // Add itself to editor
     this.editor.nodes.push(this);
   }
 
+  Node.prototype.addConnectors = function() {
+    this.connectorIn = new Connector(this, "in");
+    this.connectorOut = new Connector(this, "out");
+  }
+
   Node.prototype.setPosition = function(xPos, yPos) {
-    var nodeWidth = parseInt(this.editor.styles['.node'].width, 10);
-    var nodeHeight = parseInt(this.editor.styles['.node'].height, 10);
-    this.element.style.left = (xPos - (nodeWidth * 0.5)) + "px";
-    this.element.style.top = (yPos - (nodeHeight * 0.5)) + "px";
+    this.xPos = xPos - (this.width * 0.5);
+    this.yPos = yPos - (this.height * 0.5);
+    this.updateStyles();
   }
 
   Node.prototype.updateDragPosition = function(xPos, yPos) {
-    this.element.style.left = xPos - this.dragOffsetX + "px";
-    this.element.style.top = yPos - this.dragOffsetY + "px";
+    this.xPos = xPos - this.dragOffsetX;
+    this.yPos = yPos - this.dragOffsetY;
+    this.updateStyles();
+  }
+
+  Node.prototype.updateStyles = function() {
+    this.element.style.left = this.xPos + "px";
+    this.element.style.top = this.yPos + "px";
   }
 
   Node.prototype.setDragOffset = function(xPos, yPos) {
-    var left = parseInt(this.element.style.left, 10);
-    var top = parseInt(this.element.style.top, 10);
-    this.dragOffsetX = xPos - left;
-    this.dragOffsetY = yPos - top;
+    this.dragOffsetX = xPos - this.xPos;
+    this.dragOffsetY = yPos - this.yPos;
   }
 
   Node.prototype.setState = function(state) {
@@ -86,6 +129,7 @@ var state_drag = 1;
     this.styles = {}
     this.setStylesheet('.nodes-background');
     this.setStylesheet('.node');
+    this.setStylesheet('.connector');
   }
 
   Editor.prototype.subscribeEvents = function() {
