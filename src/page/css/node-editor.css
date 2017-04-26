@@ -26,6 +26,10 @@
   background: #d9e0d5;
 }
 
+.connector.connector-dragged {
+  background: yellow;
+}
+
 .node.node-dragged {
   background: red;
 }

@@ -5,26 +5,49 @@ var state_drag = 1;
 
   var pluginName = 'node_editor';
 
-  var nodeCount = 0; //unique node identificator
+  var CONNECTOR_IN = 0;
+  var CONNECTOR_OUT = 1;
 
-  var Connector = function (parentNode, type) {
+  var nodeCount = 0; //unique node identificator
+  var connectorCount = 0; //unique connector identificator
+
+  var newNodeId = function() {
+    nodeCount++;
+    return nodeCount;
+  }
+
+  var newConnectorId = function() {
+    connectorCount++;
+    return connectorCount;
+  }
+
+  var Connector = function (editor, parentNode, type) {
+    this.parentNode = parentNode;
     $(parentNode.element).append("<div class='connector'></div>");
     this.element = parentNode.element.lastChild;
-    var id = parentNode.element.getAttribute("node-id") + "-connector-" + type;
-    this.element.setAttribute("connector-id", id);
+    this.id = newConnectorId();
+    this.element.setAttribute("connector-id", this.id);
 
+    this.state = state_default;
     this.xPos = 0;
     this.yPos = 0;
-    this.width = parseInt(parentNode.editor.styles['.connector'].width, 10);
-    this.height = parseInt(parentNode.editor.styles['.connector'].height, 10);
+    this.width = parseInt(editor.styles['.connector'].width, 10);
+    this.height = parseInt(editor.styles['.connector'].height, 10);
     this.type = type;
     this.updatePosition(parentNode);
+
+    editor.connectors[this.id] = this;
     //Connections
+  }
+
+  Connector.prototype.setState = function(state) {
+    this.state = state;
+    this.state == state_drag ? $(this.element).addClass('connector-dragged') : $(this.element).removeClass('connector-dragged');
   }
 
   Connector.prototype.updatePosition = function(parentNode) {
     var left = parentNode.xPos + (parentNode.width * 0.5);
-    var top = (this.type == "out") ? parentNode.yPos + parentNode.height : 0;
+    var top = (this.type == CONNECTOR_OUT) ? parentNode.yPos + parentNode.height : 0;
     this.xPos = left - (this.width * 0.5);
     this.yPos = top - (this.height * 0.5);
     this.updateStyles();
@@ -36,34 +59,29 @@ var state_drag = 1;
   }
 
   var Node = function (editor, parent) {
-    this.id = nodeCount;
-    nodeCount++;
-    this.editor = editor;
+    this.id = newNodeId();
 
     // Add to DOM
     parent.append("<div class='node'></div>");
     this.element = parent[0].lastChild;
     this.element.setAttribute("node-id", this.id);
 
-    // this.offsetLeft = parent[0].offsetLeft;
-    // this.offsetTop = parent[0].offsetTop;
-
     this.xPos = 0;
     this.yPos = 0;
-    this.width = parseInt(this.editor.styles['.node'].width, 10);
-    this.height = parseInt(this.editor.styles['.node'].height, 10);
+    this.width = parseInt(editor.styles['.node'].width, 10);
+    this.height = parseInt(editor.styles['.node'].height, 10);
 
     this.state = state_default;
 
-    this.addConnectors();
+    this.addConnectors(editor);
 
     // Add itself to editor
-    this.editor.nodes.push(this);
+    editor.nodes[this.id] = this;
   }
 
-  Node.prototype.addConnectors = function() {
-    this.connectorIn = new Connector(this, "in");
-    this.connectorOut = new Connector(this, "out");
+  Node.prototype.addConnectors = function(editor) {
+    this.connectorIn = new Connector(editor, this, CONNECTOR_IN);
+    this.connectorOut = new Connector(editor, this, CONNECTOR_OUT);
   }
 
   Node.prototype.setPosition = function(xPos, yPos) {
@@ -107,7 +125,8 @@ var state_drag = 1;
     this.$element.append("<div class='nodes-background'></div>");
     this.background = this.$element[0].lastChild;
 
-    this.nodes = [];
+    this.nodes = {};
+    this.connectors = {};
   };
 
   Editor.prototype.setStylesheet = function(selector) {
@@ -141,33 +160,49 @@ var state_drag = 1;
   }
 
   Editor.prototype.mouseMovedHandler = function(event) {
-    if(this.curDrag) {
-      this.curDrag.updateDragPosition(event.clientX, event.clientY)
+    if(this.curDraggedNode) {
+      this.curDraggedNode.updateDragPosition(event.clientX, event.clientY)
     }
   }
 
   Editor.prototype.mouseDownHandler = function(event) {
     var nodeID = event.target.getAttribute("node-id");
     if(nodeID) {
-      var node = this.findNode(nodeID);
+      var node = this.nodes[nodeID];
       if(node) {
         this.setDraggingNode(node, event.clientX, event.clientY);
+      }
+    }
+    var connectorID = event.target.getAttribute("connector-id");
+    if(connectorID) {
+      var connector = this.connectors[connectorID];
+      if(connector) {
+        this.startConnection(connector);
       }
     }
   }
 
   Editor.prototype.setDraggingNode = function (node, clientX, clientY) {
-    this.curDrag = node;
-    this.curDrag.setDragOffset(clientX, clientY);
-    this.curDrag.setState(state_drag);
+    this.curDraggedNode = node;
+    this.curDraggedNode.setDragOffset(clientX, clientY);
+    this.curDraggedNode.setState(state_drag);
+  }
+
+  Editor.prototype.startConnection = function (connector, clientX, clientY) {
+    this.curDraggedConnector = connector;
+    this.curDraggedConnector.setState(state_drag);
   }
 
   Editor.prototype.mouseUpHandler = function(event) {
-    if(this.curDrag) {
-      this.curDrag.setState(state_default);
-      this.curDrag = undefined;
+    if(this.curDraggedNode) {
+      this.curDraggedNode.setState(state_default);
+      this.curDraggedNode = undefined;
+    } else if(this.curDraggedConnector) {
+      this.curDraggedConnector.setState(state_default);
+      this.curDraggedConnector = undefined;
+    } else {
+      this.clickHandler(event);
     }
-    this.clickHandler(event);
   }
 
   Editor.prototype.clickHandler = function(event) {
@@ -192,31 +227,15 @@ var state_drag = 1;
     this.createNode(clientX, clientY);
   }
 
-  Editor.prototype.removeNode = function(event) {
-    var nodeId = event.target.getAttribute("node-id");
-    this.removeNodeWithId(nodeId);
-    event.target.remove();
-  }
+  // Editor.prototype.removeNode = function(event) {
+  //   var nodeId = event.target.getAttribute("node-id");
+  //   this.removeNodeWithId(nodeId);
+  //   event.target.remove();
+  // }
 
   Editor.prototype.createNode = function(clientX, clientY) {
     var node = new Node(this, this.$element);
     node.setPosition(clientX, clientY);
-  }
-
-  Editor.prototype.findNode = function(id) {
-    for(var index = 0; index < this.nodes.length; index++) {
-      if(this.nodes[index].id == id) {
-        return this.nodes[index];
-      }
-    }
-  }
-
-  Editor.prototype.removeNodeWithId = function (id) {
-    for(var index = this.nodes.length - 1; index >= 0; index--) {
-      if(this.nodes[index].id == id) {
-        this.nodes.splice(index, 1);
-      }
-    }
   }
 
   var logError = function (message) {
