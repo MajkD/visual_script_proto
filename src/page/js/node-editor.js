@@ -1,5 +1,6 @@
 var state_default = 0;
 var state_drag = 1;
+var state_connecting = 2;
 
 ;(function ($, window, document, undefined) {
 
@@ -23,7 +24,7 @@ var state_drag = 1;
 
   var Connector = function (editor, parentNode, type) {
     this.parentNode = parentNode;
-    $(parentNode.element).append("<div class='connector'></div>");
+    $(parentNode.element).append(editor.template.connector);
     this.element = parentNode.element.lastChild;
     this.id = newConnectorId();
     this.element.setAttribute("connector-id", this.id);
@@ -42,7 +43,7 @@ var state_drag = 1;
 
   Connector.prototype.setState = function(state) {
     this.state = state;
-    this.state == state_drag ? $(this.element).addClass('connector-dragged') : $(this.element).removeClass('connector-dragged');
+    this.state == state_connecting ? $(this.element).addClass('connector-connecting') : $(this.element).removeClass('connector-connecting');
   }
 
   Connector.prototype.updatePosition = function(parentNode) {
@@ -62,7 +63,7 @@ var state_drag = 1;
     this.id = newNodeId();
 
     // Add to DOM
-    parent.append("<div class='node'></div>");
+    parent.append(editor.template.node);
     this.element = parent[0].lastChild;
     this.element.setAttribute("node-id", this.id);
 
@@ -122,7 +123,7 @@ var state_drag = 1;
     this.subscribeEvents();
     this.initStyles();
 
-    this.$element.append("<div class='nodes-background'></div>");
+    this.$element.append(this.template.background);
     this.background = this.$element[0].lastChild;
 
     this.nodes = {};
@@ -163,6 +164,11 @@ var state_drag = 1;
     if(this.curDraggedNode) {
       this.curDraggedNode.updateDragPosition(event.clientX, event.clientY)
     }
+
+    if(this.curPressedConnector) {
+      // var connector = this.$element.find($(".connector-temp"));
+      // connector.attr()
+    }
   }
 
   Editor.prototype.mouseDownHandler = function(event) {
@@ -170,7 +176,7 @@ var state_drag = 1;
     if(nodeID) {
       var node = this.nodes[nodeID];
       if(node) {
-        this.setDraggingNode(node, event.clientX, event.clientY);
+        this.startDraggingNode(node, event.clientX, event.clientY);
       }
     }
     var connectorID = event.target.getAttribute("connector-id");
@@ -182,25 +188,43 @@ var state_drag = 1;
     }
   }
 
-  Editor.prototype.setDraggingNode = function (node, clientX, clientY) {
+  Editor.prototype.startDraggingNode = function (node, clientX, clientY) {
     this.curDraggedNode = node;
     this.curDraggedNode.setDragOffset(clientX, clientY);
     this.curDraggedNode.setState(state_drag);
   }
 
-  Editor.prototype.startConnection = function (connector, clientX, clientY) {
-    this.curDraggedConnector = connector;
-    this.curDraggedConnector.setState(state_drag);
-  }
-
-  Editor.prototype.mouseUpHandler = function(event) {
+  Editor.prototype.stopDraggingNode = function () {
     if(this.curDraggedNode) {
       this.curDraggedNode.setState(state_default);
       this.curDraggedNode = undefined;
-    } else if(this.curDraggedConnector) {
-      this.curDraggedConnector.setState(state_default);
-      this.curDraggedConnector = undefined;
-    } else {
+      return true;
+    }
+    return false;
+  }
+
+  Editor.prototype.startConnection = function (connector, clientX, clientY) {
+    var xPos = connector.parentNode.xPos + connector.xPos;
+    var yPos = connector.parentNode.yPos;
+    this.$element.append(this.createLineElement(xPos, yPos, 200, 0.2).addClass("connector-temp"));
+    this.curPressedConnector = connector;
+    this.curPressedConnector.setState(state_connecting);
+  }
+
+  Editor.prototype.finishConnection = function () {
+    if(this.curPressedConnector) {
+      this.$element.find($(".connector-temp")).remove();
+      this.curPressedConnector.setState(state_default);
+      this.curPressedConnector = undefined;
+      return true;
+    }
+    return false;
+  }
+
+  Editor.prototype.mouseUpHandler = function(event) {
+    var consumeClick = this.stopDraggingNode();
+    consumeClick = this.finishConnection() ? true : consumeClick;
+    if(!consumeClick) {
       this.clickHandler(event);
     }
   }
@@ -237,6 +261,29 @@ var state_drag = 1;
     var node = new Node(this, this.$element);
     node.setPosition(clientX, clientY);
   }
+
+  Editor.prototype.createLineElement = function(x, y, length, angle) {
+    var line = $('<div class="connection"></div>');
+    var styles = 'border: 1px solid black; '
+               + 'width: ' + length + 'px; '
+               + 'height: 0px; '
+               + '-moz-transform: rotate(' + angle + 'rad); '
+               + '-webkit-transform: rotate(' + angle + 'rad); '
+               + '-o-transform: rotate(' + angle + 'rad); '  
+               + '-ms-transform: rotate(' + angle + 'rad); '  
+               + 'position: absolute; '
+               + 'top: ' + y + 'px; '
+               + 'left: ' + x + 'px; ';
+    line.attr('style', styles);  
+    return line;
+  }
+
+  Editor.prototype.template = {
+    background: '<div class="nodes-background"></div>',
+    node: '<div class="node"></div>',
+    connector: '<div class="connector"></div>'
+    // connection: '<div class="connection"></div>',
+  };
 
   var logError = function (message) {
     if (window.console) {

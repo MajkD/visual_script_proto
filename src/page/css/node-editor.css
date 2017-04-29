@@ -9,7 +9,7 @@
   height: 50px;
   position: absolute;
   border: 1px solid black;
-  border-radius: 15px;
+  border-radius: 10px;
   background: #5f98f4;
 }
 
@@ -23,16 +23,16 @@
 }
 
 .connector:hover {
-  background: #d9e0d5;
-}
-
-.connector.connector-dragged {
   background: yellow;
 }
 
-.node.node-dragged {
-  background: red;
+.connector.connector-connecting {
+  background: yellow;
 }
+
+/*.node.node-dragged {
+  background: red;
+}*/
 
 /*.node:hover {
   background: #9bbef7;
