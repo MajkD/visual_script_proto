@@ -30,6 +30,11 @@
   background: yellow;
 }
 
+.connection.connector-temp {
+  height: 1px;
+  background: black;
+}
+
 /*.node.node-dragged {
   background: red;
 }*/

@@ -166,8 +166,14 @@ var state_connecting = 2;
     }
 
     if(this.curPressedConnector) {
-      // var connector = this.$element.find($(".connector-temp"));
-      // connector.attr()
+      var connector = this.curPressedConnector;
+      var xPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
+      var yPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
+
+      var connection = this.$element.find($(".connector-temp"));
+      var pointA = { top: yPos, left: xPos };
+      var pointB = { top: event.clientY, left: event.clientX };
+      drawLine(pointA, pointB, connection);
     }
   }
 
@@ -204,9 +210,15 @@ var state_connecting = 2;
   }
 
   Editor.prototype.startConnection = function (connector, clientX, clientY) {
-    var xPos = connector.parentNode.xPos + connector.xPos;
-    var yPos = connector.parentNode.yPos;
-    this.$element.append(this.createLineElement(xPos, yPos, 200, 0.2).addClass("connector-temp"));
+    var xPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
+    var yPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
+
+    var connection = $(this.template.connection).addClass('connector-temp');
+    this.$element.append(connection);
+    var pointA = { top: yPos, left: xPos };
+    var pointB = { top: event.clientY, left: event.clientX };
+    drawLine(pointA, pointB, connection);
+
     this.curPressedConnector = connector;
     this.curPressedConnector.setState(state_connecting);
   }
@@ -214,6 +226,7 @@ var state_connecting = 2;
   Editor.prototype.finishConnection = function () {
     if(this.curPressedConnector) {
       this.$element.find($(".connector-temp")).remove();
+
       this.curPressedConnector.setState(state_default);
       this.curPressedConnector = undefined;
       return true;
@@ -262,27 +275,11 @@ var state_connecting = 2;
     node.setPosition(clientX, clientY);
   }
 
-  Editor.prototype.createLineElement = function(x, y, length, angle) {
-    var line = $('<div class="connection"></div>');
-    var styles = 'border: 1px solid black; '
-               + 'width: ' + length + 'px; '
-               + 'height: 0px; '
-               + '-moz-transform: rotate(' + angle + 'rad); '
-               + '-webkit-transform: rotate(' + angle + 'rad); '
-               + '-o-transform: rotate(' + angle + 'rad); '  
-               + '-ms-transform: rotate(' + angle + 'rad); '  
-               + 'position: absolute; '
-               + 'top: ' + y + 'px; '
-               + 'left: ' + x + 'px; ';
-    line.attr('style', styles);  
-    return line;
-  }
-
   Editor.prototype.template = {
     background: '<div class="nodes-background"></div>',
     node: '<div class="node"></div>',
-    connector: '<div class="connector"></div>'
-    // connection: '<div class="connection"></div>',
+    connector: '<div class="connector"></div>',
+    connection: '<div class="connection"></div>'
   };
 
   var logError = function (message) {
