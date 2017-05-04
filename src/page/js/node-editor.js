@@ -11,6 +11,7 @@ var state_connecting = 2;
 
   var nodeCount = 0; //unique node identificator
   var connectorCount = 0; //unique connector identificator
+  var connectionCount = 0; //unique connector identificator
 
   var newNodeId = function() {
     nodeCount++;
@@ -22,12 +23,42 @@ var state_connecting = 2;
     return connectorCount;
   }
 
+  var newConnectionId = function() {
+    connectionCount++;
+    return connectionCount;
+  }
+
+  var Connection = function (editor, startConnector, endConnector) {
+    $(editor.connectionsElement).append(editor.template.connection);
+    this.element = editor.connectionsElement.lastChild;
+    this.id = newConnectionId();
+    this.element.setAttribute("connection-id", this.id);
+    this.startConnector = startConnector;
+    this.endConnector = endConnector;
+    this.startConnector.addConnection(this);
+    this.endConnector.addConnection(this);
+    editor.connections[this.id] = this;
+    this.updateLine();
+  }
+
+  Connection.prototype.updateLine = function() {
+    var startX = this.startConnector.parentNode.xPos + this.startConnector.xPos + (this.startConnector.width * 0.5);
+    var startY = this.startConnector.parentNode.yPos + this.startConnector.yPos + (this.startConnector.height * 0.5);
+    var endX = this.endConnector.parentNode.xPos + this.endConnector.xPos + (this.endConnector.width * 0.5);
+    var endY = this.endConnector.parentNode.yPos + this.endConnector.yPos + (this.endConnector.width * 0.5);
+    var pointA = { left: startX, top: startY };
+    var pointB = { left: endX, top: endY };
+    drawLine(pointA, pointB, $(this.element));
+  }
+
   var Connector = function (editor, parentNode, type) {
     this.parentNode = parentNode;
     $(parentNode.element).append(editor.template.connector);
     this.element = parentNode.element.lastChild;
     this.id = newConnectorId();
     this.element.setAttribute("connector-id", this.id);
+
+    this.connections = {}
 
     this.state = state_default;
     this.xPos = 0;
@@ -39,6 +70,19 @@ var state_connecting = 2;
 
     editor.connectors[this.id] = this;
     //Connections
+  }
+
+  Connector.prototype.addConnection = function(connection) {
+    this.connections[connection.id] = connection;
+  }
+
+  Connector.prototype.canConnect = function(connector) {
+    if(this.parentNode != connector.parentNode) {
+      if(this.type != connector.type) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Connector.prototype.setState = function(state) {
@@ -54,17 +98,23 @@ var state_connecting = 2;
     this.updateStyles();
   }
 
+  Connector.prototype.updateConnectionPositions = function() {
+    for(var conn in this.connections) {
+      this.connections[conn].updateLine();
+    }
+  }
+
   Connector.prototype.updateStyles = function() {
     this.element.style.left = this.xPos + "px";
     this.element.style.top = this.yPos + "px";
   }
 
-  var Node = function (editor, parent) {
+  var Node = function (editor) {
     this.id = newNodeId();
 
     // Add to DOM
-    parent.append(editor.template.node);
-    this.element = parent[0].lastChild;
+    editor.$element.append(editor.template.node);
+    this.element = editor.$element[0].lastChild;
     this.element.setAttribute("node-id", this.id);
 
     this.xPos = 0;
@@ -88,12 +138,19 @@ var state_connecting = 2;
   Node.prototype.setPosition = function(xPos, yPos) {
     this.xPos = xPos - (this.width * 0.5);
     this.yPos = yPos - (this.height * 0.5);
+    this.updateConnectionPositions();
     this.updateStyles();
+  }
+
+  Node.prototype.updateConnectionPositions = function(connector) {
+    this.connectorIn.updateConnectionPositions();
+    this.connectorOut.updateConnectionPositions();
   }
 
   Node.prototype.updateDragPosition = function(xPos, yPos) {
     this.xPos = xPos - this.dragOffsetX;
     this.yPos = yPos - this.dragOffsetY;
+    this.updateConnectionPositions();
     this.updateStyles();
   }
 
@@ -124,10 +181,12 @@ var state_connecting = 2;
     this.initStyles();
 
     this.$element.append(this.template.background);
-    this.background = this.$element[0].lastChild;
+    this.$element.append(this.template.connections);
+    this.connectionsElement = this.$element[0].lastChild;
 
     this.nodes = {};
     this.connectors = {};
+    this.connections = {};
   };
 
   Editor.prototype.setStylesheet = function(selector) {
@@ -163,7 +222,7 @@ var state_connecting = 2;
   }
 
   Editor.prototype.mouseDownHandler = function(event) {
-    this.onMouseDown(this.getOffsetPos(event));
+    this.onMouseDown(this.getOffsetPos(event), event.target);
   }
 
   Editor.prototype.mouseUpHandler = function(event) {
@@ -171,10 +230,10 @@ var state_connecting = 2;
   }
 
   Editor.prototype.mouseMovedHandler = function(event) {
-   this.onMouseMove(this.getOffsetPos(event)); 
+   this.onMouseMove(this.getOffsetPos(event), event.target); 
   }
 
-  Editor.prototype.onMouseMove = function(pos) {
+  Editor.prototype.onMouseMove = function(pos, target) {
     if(this.curDraggedNode) {
       this.curDraggedNode.updateDragPosition(pos.x, pos.y)
     }
@@ -184,27 +243,48 @@ var state_connecting = 2;
       var connXPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
       var connYPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
 
-      var connection = this.$element.find($(".connector-temp"));
+      var connection = $(this.connectionsElement).find($(".connector-temp"));
       var pointA = { top: connYPos, left: connXPos };
       var pointB = { top: pos.y, left: pos.x };
       drawLine(pointA, pointB, connection);
+
+      this.updateMouseoverForTargetConnector(target);
     }
   }
 
-  Editor.prototype.onMouseDown = function(pos) {
-    var nodeID = event.target.getAttribute("node-id");
+  Editor.prototype.updateMouseoverForTargetConnector = function(target) {
+    var connector = this.getConnectorFromTarget(target);
+    if(connector && this.curPressedConnector && connector != this.curPressedConnector) {
+      $(connector.element).addClass('connector-connecting');
+      this.mouseOverConnector = connector;
+    } else {
+      if(this.mouseOverConnector) {
+        $(this.mouseOverConnector.element).removeClass('connector-connecting');
+        this.mouseOverConnector = undefined;
+      }
+    }
+  }
+
+  Editor.prototype.getConnectorFromTarget = function(target) {
+    var connectorID = target.getAttribute("connector-id");
+    if(connectorID) {
+      return this.connectors[connectorID];
+    }
+    return null;
+  }
+
+  Editor.prototype.onMouseDown = function(pos, target) {
+    var nodeID = target.getAttribute("node-id");
     if(nodeID) {
       var node = this.nodes[nodeID];
       if(node) {
         this.startDraggingNode(node, pos.x, pos.y);
       }
     }
-    var connectorID = event.target.getAttribute("connector-id");
-    if(connectorID) {
-      var connector = this.connectors[connectorID];
-      if(connector) {
-        this.startConnection(connector, pos.x, pos.y);
-      }
+
+    var connector = this.getConnectorFromTarget(target);
+    if(connector) {
+      this.startConnection(connector, pos.x, pos.y);
     }
   }
 
@@ -224,12 +304,12 @@ var state_connecting = 2;
   }
 
   Editor.prototype.startConnection = function (connector, xPos, yPos) {
-    var xPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
-    var yPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
+    var connXPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
+    var connYPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
 
     var connection = $(this.template.connection).addClass('connector-temp');
-    this.$element.append(connection);
-    var pointA = { top: yPos, left: xPos };
+    $(this.connectionsElement).append(connection);
+    var pointA = { top: connYPos, left: connXPos };
     var pointB = { top: yPos, left: xPos };
     drawLine(pointA, pointB, connection);
 
@@ -237,12 +317,21 @@ var state_connecting = 2;
     this.curPressedConnector.setState(state_connecting);
   }
 
-  Editor.prototype.finishConnection = function () {
+  Editor.prototype.finishConnection = function (target) {
     if(this.curPressedConnector) {
-      this.$element.find($(".connector-temp")).remove();
+      $(this.connectionsElement).find($(".connector-temp")).remove();
+
+      var connector = this.getConnectorFromTarget(target);
+      if(connector) {
+        if(this.curPressedConnector.canConnect(connector)) {
+          new Connection(this, this.curPressedConnector, connector);
+        }
+      }
 
       this.curPressedConnector.setState(state_default);
       this.curPressedConnector = undefined;
+      this.updateMouseoverForTargetConnector(target);
+
       return true;
     }
     return false;
@@ -250,7 +339,7 @@ var state_connecting = 2;
 
   Editor.prototype.onMouseUp = function(pos, target) {
     var consumeClick = this.stopDraggingNode();
-    consumeClick = this.finishConnection() ? true : consumeClick;
+    consumeClick = this.finishConnection(target) ? true : consumeClick;
     if(!consumeClick) {
       this.clickHandler(pos, target);
     }
@@ -267,7 +356,7 @@ var state_connecting = 2;
   }
 
   Editor.prototype.createNode = function(xPos, yPos) {
-    var node = new Node(this, this.$element);
+    var node = new Node(this);
     node.setPosition(xPos, yPos);
   }
 
@@ -275,6 +364,7 @@ var state_connecting = 2;
     background: '<div class="nodes-background"></div>',
     node: '<div class="node"></div>',
     connector: '<div class="connector"></div>',
+    connections: '<div class="connections"></div>',
     connection: '<div class="connection"></div>'
   };
 

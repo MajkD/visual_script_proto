@@ -1,1 +1,4 @@
-- Wrap line rendering in a line object
+- refactor temp connector into something
+- Connection start is not alligned to middle of connector
+- TODO: IF ALREAYD EXCISTING CONNECTION BETWEEN CONNECTORS< NOT ALLOW!!
+- DEtecxt circular connections

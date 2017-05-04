@@ -30,9 +30,15 @@
   background: yellow;
 }
 
-.connection.connector-temp {
+.connection {
   height: 1px;
   background: black;
+  z-index: 10;
+  pointer-events:none;
+}
+
+.connection.connector-temp {
+  background: red;
 }
 
 /*.node.node-dragged {
