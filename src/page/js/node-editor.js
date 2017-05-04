@@ -155,48 +155,62 @@ var state_connecting = 2;
   Editor.prototype.subscribeEvents = function() {
     this.$element.on('mousedown', $.proxy(this.mouseDownHandler, this));
     this.$element.on('mouseup', $.proxy(this.mouseUpHandler, this));
-
-    // this.$element.on('click', $.proxy(this.clickHandler, this));
     this.$element.on('mousemove', $.proxy(this.mouseMovedHandler, this));
   }
 
+  Editor.prototype.getOffsetPos = function(event) {
+    return { x: event.clientX + window.pageXOffset, y: event.clientY + window.pageYOffset }
+  }
+
+  Editor.prototype.mouseDownHandler = function(event) {
+    this.onMouseDown(this.getOffsetPos(event));
+  }
+
+  Editor.prototype.mouseUpHandler = function(event) {
+    this.onMouseUp(this.getOffsetPos(event), event.target);
+  }
+
   Editor.prototype.mouseMovedHandler = function(event) {
+   this.onMouseMove(this.getOffsetPos(event)); 
+  }
+
+  Editor.prototype.onMouseMove = function(pos) {
     if(this.curDraggedNode) {
-      this.curDraggedNode.updateDragPosition(event.clientX, event.clientY)
+      this.curDraggedNode.updateDragPosition(pos.x, pos.y)
     }
 
     if(this.curPressedConnector) {
       var connector = this.curPressedConnector;
-      var xPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
-      var yPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
+      var connXPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
+      var connYPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
 
       var connection = this.$element.find($(".connector-temp"));
-      var pointA = { top: yPos, left: xPos };
-      var pointB = { top: event.clientY, left: event.clientX };
+      var pointA = { top: connYPos, left: connXPos };
+      var pointB = { top: pos.y, left: pos.x };
       drawLine(pointA, pointB, connection);
     }
   }
 
-  Editor.prototype.mouseDownHandler = function(event) {
+  Editor.prototype.onMouseDown = function(pos) {
     var nodeID = event.target.getAttribute("node-id");
     if(nodeID) {
       var node = this.nodes[nodeID];
       if(node) {
-        this.startDraggingNode(node, event.clientX, event.clientY);
+        this.startDraggingNode(node, pos.x, pos.y);
       }
     }
     var connectorID = event.target.getAttribute("connector-id");
     if(connectorID) {
       var connector = this.connectors[connectorID];
       if(connector) {
-        this.startConnection(connector);
+        this.startConnection(connector, pos.x, pos.y);
       }
     }
   }
 
-  Editor.prototype.startDraggingNode = function (node, clientX, clientY) {
+  Editor.prototype.startDraggingNode = function (node, xPos, yPos) {
     this.curDraggedNode = node;
-    this.curDraggedNode.setDragOffset(clientX, clientY);
+    this.curDraggedNode.setDragOffset(xPos, yPos);
     this.curDraggedNode.setState(state_drag);
   }
 
@@ -209,14 +223,14 @@ var state_connecting = 2;
     return false;
   }
 
-  Editor.prototype.startConnection = function (connector, clientX, clientY) {
+  Editor.prototype.startConnection = function (connector, xPos, yPos) {
     var xPos = connector.parentNode.xPos + connector.xPos + (connector.width * 0.5);
     var yPos = connector.parentNode.yPos + connector.yPos + (connector.height * 0.5);;
 
     var connection = $(this.template.connection).addClass('connector-temp');
     this.$element.append(connection);
     var pointA = { top: yPos, left: xPos };
-    var pointB = { top: event.clientY, left: event.clientX };
+    var pointB = { top: yPos, left: xPos };
     drawLine(pointA, pointB, connection);
 
     this.curPressedConnector = connector;
@@ -234,45 +248,27 @@ var state_connecting = 2;
     return false;
   }
 
-  Editor.prototype.mouseUpHandler = function(event) {
+  Editor.prototype.onMouseUp = function(pos, target) {
     var consumeClick = this.stopDraggingNode();
     consumeClick = this.finishConnection() ? true : consumeClick;
     if(!consumeClick) {
-      this.clickHandler(event);
+      this.clickHandler(pos, target);
     }
   }
 
-  Editor.prototype.clickHandler = function(event) {
-    var target = event.target;
+  Editor.prototype.clickHandler = function(pos, target) {
     if(target.className == "nodes-background") {
-      this.handleBackgroundClicked(event.clientX, event.clientY);
-    } else if(this.hasClass('node', target)) {
-      this.handleNodeClicked(event);
+      this.handleBackgroundClicked(pos.x, pos.y);
     }
   }
 
-  Editor.prototype.hasClass = function(className, element) {
-    var classList = $(element).attr('class') ? $(element).attr('class').split(' ') : [];
-    return classList.includes(className);
+  Editor.prototype.handleBackgroundClicked = function(xPos, yPos) {
+    this.createNode(xPos, yPos);
   }
 
-  Editor.prototype.handleNodeClicked = function(event) {
-    // this.removeNode(event);
-  }
-
-  Editor.prototype.handleBackgroundClicked = function(clientX, clientY) {
-    this.createNode(clientX, clientY);
-  }
-
-  // Editor.prototype.removeNode = function(event) {
-  //   var nodeId = event.target.getAttribute("node-id");
-  //   this.removeNodeWithId(nodeId);
-  //   event.target.remove();
-  // }
-
-  Editor.prototype.createNode = function(clientX, clientY) {
+  Editor.prototype.createNode = function(xPos, yPos) {
     var node = new Node(this, this.$element);
-    node.setPosition(clientX, clientY);
+    node.setPosition(xPos, yPos);
   }
 
   Editor.prototype.template = {

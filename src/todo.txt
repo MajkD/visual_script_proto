@@ -1,2 +1,1 @@
-- when scrolling the nodes are offset
 - Wrap line rendering in a line object
