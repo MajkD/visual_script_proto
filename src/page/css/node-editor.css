@@ -5,8 +5,8 @@
 }
 
 .node {
-  width: 60px;
-  height: 50px;
+  width: 100px;
+  height: 70px;
   position: absolute;
   border: 1px solid black;
   border-radius: 10px;
@@ -14,12 +14,13 @@
 }
 
 .connector {
-  width: 8px;
-  height: 8px;
+  width: 15px;
+  height: 15px;
   position: absolute;
   border: 1px solid black;
-  border-radius: 15px;
-  background: green;
+  border-radius: 5px;
+  background: rgb(42, 108, 214);
+  z-index: 10;
 }
 
 .connector:hover {
@@ -33,7 +34,7 @@
 .connection {
   height: 1px;
   background: black;
-  z-index: 10;
+  z-index: 5;
   pointer-events:none;
 }
 

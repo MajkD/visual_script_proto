@@ -38,14 +38,16 @@ var state_connecting = 2;
     this.startConnector.addConnection(this);
     this.endConnector.addConnection(this);
     editor.connections[this.id] = this;
+    this.positionOffset = (parseInt(editor.styles['.node'].border) + parseInt(editor.styles['.connector'].border));
+    console.log(this.positionOffset)
     this.updateLine();
   }
 
   Connection.prototype.updateLine = function() {
-    var startX = this.startConnector.parentNode.xPos + this.startConnector.xPos + (this.startConnector.width * 0.5);
-    var startY = this.startConnector.parentNode.yPos + this.startConnector.yPos + (this.startConnector.height * 0.5);
-    var endX = this.endConnector.parentNode.xPos + this.endConnector.xPos + (this.endConnector.width * 0.5);
-    var endY = this.endConnector.parentNode.yPos + this.endConnector.yPos + (this.endConnector.width * 0.5);
+    var startX = this.startConnector.parentNode.xPos + this.startConnector.xPos + (this.startConnector.width * 0.5) + this.positionOffset;
+    var startY = this.startConnector.parentNode.yPos + this.startConnector.yPos + (this.startConnector.height * 0.5) + this.positionOffset;
+    var endX = this.endConnector.parentNode.xPos + this.endConnector.xPos + (this.endConnector.width * 0.5) + this.positionOffset;
+    var endY = this.endConnector.parentNode.yPos + this.endConnector.yPos + (this.endConnector.width * 0.5) + this.positionOffset;
     var pointA = { left: startX, top: startY };
     var pointB = { left: endX, top: endY };
     drawLine(pointA, pointB, $(this.element));

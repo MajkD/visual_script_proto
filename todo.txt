@@ -1,1 +1,4 @@
+- Not add multiple connections of the same
+- Delete node
+
 - Rename editor
