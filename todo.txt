@@ -1,4 +1,5 @@
 - Not add multiple connections of the same
+- Connector is rendered over other nodes
 - Delete node
 
 - Rename editor

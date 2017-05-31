@@ -39,7 +39,6 @@ var state_connecting = 2;
     this.endConnector.addConnection(this);
     editor.connections[this.id] = this;
     this.positionOffset = (parseInt(editor.styles['.node'].border) + parseInt(editor.styles['.connector'].border));
-    console.log(this.positionOffset)
     this.updateLine();
   }
 
@@ -127,9 +126,21 @@ var state_connecting = 2;
     this.state = state_default;
 
     this.addConnectors(editor);
+    this.addDeleteButton();
 
     // Add itself to editor
     editor.nodes[this.id] = this;
+  }
+
+  Node.prototype.addDeleteButton = function() {
+    deleteButton = $('<icon class="fa fa-close delete-node-button"></icon>')
+    $(this.element).append(deleteButton)
+    console.log($(this.element.lastChild))
+    $(this.element.lastChild).on('click', $.proxy(this.deleteClicked, this));
+  }
+
+  Node.prototype.deleteClicked = function() {
+    console.log("Delete clicked on node: ", this.id);
   }
 
   Node.prototype.addConnectors = function(editor) {

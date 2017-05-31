@@ -13,6 +13,13 @@
   background: #5f98f4;
 }
 
+.delete-node-button.fa {
+  float: right;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
 .connector {
   width: 15px;
   height: 15px;
